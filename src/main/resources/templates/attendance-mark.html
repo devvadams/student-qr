@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mark Attendance - Student QR System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .attendance-card {
+            transition: all 0.3s;
+        }
+        .present { background-color: #d4edda !important; }
+        .absent { background-color: #f8d7da !important; }
+        .late { background-color: #fff3cd !important; }
+        .excused { background-color: #d1ecf1 !important; }
+        .qr-scanner {
+            border: 2px dashed #007bff;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .qr-scanner:hover {
+            background-color: #f8f9fa;
+            border-color: #0056b3;
+        }
+        .quick-mark-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            margin: 5px;
+        }
+        .holiday-info {
+            border-left: 5px solid #ffc107;
+            background-color: #fff8e1;
+        }
+        .activity-day {
+            border-left: 5px solid #20c997;
+            background-color: #d4edda;
+        }
+    </style>
+</head>
+<body>
+<!-- Navigation -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="/dashboard">
+            <i class="fas fa-qrcode"></i> Student QR System
+        </a>
+        <div class="navbar-nav">
+            <a class="nav-link" href="/dashboard">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </a>
+            <a class="nav-link active" href="/attendance/mark">
+                <i class="fas fa-clipboard-check"></i> Mark Attendance
+            </a>
+            <a class="nav-link" href="/attendance/records">
+                <i class="fas fa-list-alt"></i> Records
+            </a>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <!-- Flash Messages -->
+    <div th:if="${param.success}" class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i>
+        <span th:text="${param.message}">Attendance marked successfully!</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div th:if="${param.error}" class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-circle"></i>
+        <span th:text="${param.message}">Error occurred!</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Holiday/Special Day Alert -->
+    <div th:if="${isHoliday}" th:classappend="${shouldMarkAttendance} ? 'activity-day' : 'holiday-info'"
+         class="alert alert-warning alert-dismissible fade show">
+        <h5>
+            <i th:if="${shouldMarkAttendance}" class="fas fa-calendar-check text-success"></i>
+            <i th:unless="${shouldMarkAttendance}" class="fas fa-calendar-times text-warning"></i>
+            <span th:if="${shouldMarkAttendance}">Special Activity Day</span>
+            <span th:unless="${shouldMarkAttendance}">Holiday/Non-Attendance Day</span>
+        </h5>
+
+        <div th:if="${holidays != null and !holidays.isEmpty()}">
+            <p class="mb-1">Today is:</p>
+            <ul class="mb-2">
+                <li th:each="holiday : ${holidays}"
+                    th:text="${holiday.name} + ' - ' + ${holiday.description}"></li>
+            </ul>
+        </div>
+
+        <p class="mb-0" th:if="${shouldMarkAttendance}">
+            <i class="fas fa-info-circle text-success"></i>
+            Attendance marking is <strong>enabled</strong> for special activities.
+        </p>
+        <p class="mb-0" th:unless="${shouldMarkAttendance}">
+            <i class="fas fa-info-circle text-warning"></i>
+            Attendance marking is <strong>disabled</strong> for today.
+        </p>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1><i class="fas fa-clipboard-check"></i> Mark Attendance</h1>
+            <p class="text-muted">
+                Date: <span th:text="${formattedDate}"></span> |
+                <span th:text="${attendanceSummary.markedCount}">0</span> marked out of
+                <span th:text="${attendanceSummary.totalStudents}">0</span> students
+                <span th:if="${isHoliday}" class="badge ms-2"
+                      th:classappend="${shouldMarkAttendance} ? 'bg-success' : 'bg-warning'">
+                    <i th:if="${shouldMarkAttendance}" class="fas fa-running"></i>
+                    <i th:unless="${shouldMarkAttendance}" class="fas fa-umbrella-beach"></i>
+                    <span th:if="${shouldMarkAttendance}">Activity Day</span>
+                    <span th:unless="${shouldMarkAttendance}">Holiday</span>
+                </span>
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="/attendance/records" class="btn btn-info">
+                <i class="fas fa-list-alt"></i> View Records
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column: Manual Entry -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header" th:classappend="${isHoliday and !shouldMarkAttendance} ? 'bg-secondary' : 'bg-primary'">
+                    <h5 class="mb-0 text-white">
+                        <i class="fas fa-keyboard"></i> Manual Entry
+                        <span th:if="${isHoliday and !shouldMarkAttendance}" class="badge bg-warning">
+                            <i class="fas fa-lock"></i> Disabled
+                        </span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form th:action="@{/attendance/mark}" method="post">
+                        <div class="mb-3">
+                            <label for="studentIdentifier" class="form-label">
+                                <i class="fas fa-id-card"></i> Student ID or Roll Number
+                            </label>
+                            <input type="text" class="form-control"
+                                   th:disabled="${isHoliday and !shouldMarkAttendance}"
+                                   id="studentIdentifier" name="studentIdentifier"
+                                   placeholder="Enter student ID or roll number" required>
+                            <small class="text-muted">You can enter either Student ID or Roll Number</small>
+                            <small th:if="${isHoliday and !shouldMarkAttendance}" class="text-warning d-block mt-1">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                Disabled on holidays
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-user-check"></i> Attendance Status
+                            </label>
+                            <div class="row">
+                                <div class="col-3">
+                                    <button type="button" onclick="setStatus('PRESENT')"
+                                            class="btn w-100 quick-mark-btn"
+                                            th:classappend="${isHoliday and !shouldMarkAttendance} ? 'btn-outline-secondary' : 'btn-outline-success'"
+                                            th:disabled="${isHoliday and !shouldMarkAttendance}">
+                                        <i class="fas fa-check"></i><br>Present
+                                    </button>
+                                </div>
+                                <div class="col-3">
+                                    <button type="button" onclick="setStatus('ABSENT')"
+                                            class="btn w-100 quick-mark-btn"
+                                            th:classappend="${isHoliday and !shouldMarkAttendance} ? 'btn-outline-secondary' : 'btn-outline-danger'"
+                                            th:disabled="${isHoliday and !shouldMarkAttendance}">
+                                        <i class="fas fa-times"></i><br>Absent
+                                    </button>
+                                </div>
+                                <div class="col-3">
+                                    <button type="button" onclick="setStatus('LATE')"
+                                            class="btn w-100 quick-mark-btn"
+                                            th:classappend="${isHoliday and !shouldMarkAttendance} ? 'btn-outline-secondary' : 'btn-outline-warning'"
+                                            th:disabled="${isHoliday and !shouldMarkAttendance}">
+                                        <i class="fas fa-clock"></i><br>Late
+                                    </button>
+                                </div>
+                                <div class="col-3">
+                                    <button type="button" onclick="setStatus('EXCUSED')"
+                                            class="btn w-100 quick-mark-btn"
+                                            th:classappend="${isHoliday and !shouldMarkAttendance} ? 'btn-outline-secondary' : 'btn-outline-info'"
+                                            th:disabled="${isHoliday and !shouldMarkAttendance}">
+                                        <i class="fas fa-notes-medical"></i><br>Excused
+                                    </button>
+                                </div>
+                            </div>
+                            <input type="hidden" id="status" name="status" value="PRESENT" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="remarks" class="form-label">
+                                <i class="fas fa-comment"></i> Remarks (Optional)
+                            </label>
+                            <textarea class="form-control" id="remarks" name="remarks"
+                                      rows="2" placeholder="Enter any remarks..."
+                                      th:disabled="${isHoliday and !shouldMarkAttendance}"></textarea>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-lg"
+                                    th:classappend="${isHoliday and !shouldMarkAttendance} ? 'btn-secondary' : 'btn-primary'"
+                                    th:disabled="${isHoliday and !shouldMarkAttendance}">
+                                <i class="fas fa-save"></i>
+                                <span th:if="${isHoliday and !shouldMarkAttendance}">Attendance Disabled</span>
+                                <span th:unless="${isHoliday and !shouldMarkAttendance}">Mark Attendance</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="card mt-4 shadow">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Today's Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-3">
+                            <div class="display-6 text-success"
+                                 th:text="${attendanceSummary.presentCount}">0</div>
+                            <small class="text-muted">Present</small>
+                        </div>
+                        <div class="col-3">
+                            <div class="display-6 text-danger"
+                                 th:text="${attendanceSummary.absentCount}">0</div>
+                            <small class="text-muted">Absent</small>
+                        </div>
+                        <div class="col-3">
+                            <div class="display-6 text-warning"
+                                 th:text="${attendanceSummary.unmarkedCount}">0</div>
+                            <small class="text-muted">Unmarked</small>
+                        </div>
+                        <div class="col-3">
+                            <div class="display-6 text-primary"
+                                 th:text="${#numbers.formatDecimal(attendanceSummary.attendancePercentage, 1, 1)} + '%'">0%</div>
+                            <small class="text-muted">Attendance</small>
+                        </div>
+                    </div>
+                    <div th:if="${isHoliday}" class="mt-3 text-center">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i>
+                            <span th:if="${shouldMarkAttendance}">Special activity day - attendance enabled</span>
+                            <span th:unless="${shouldMarkAttendance}">Holiday - attendance disabled</span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: QR Scanner -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header" th:classappend="${isHoliday and !shouldMarkAttendance} ? 'bg-secondary' : 'bg-success'">
+                    <h5 class="mb-0 text-white">
+                        <i class="fas fa-qrcode"></i> QR Code Scanner
+                        <span th:if="${isHoliday and !shouldMarkAttendance}" class="badge bg-warning">
+                            <i class="fas fa-lock"></i> Disabled
+                        </span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- QR Scanner Placeholder -->
+                    <div class="qr-scanner mb-4" onclick="startQRScanner()"
+                         th:classappend="${isHoliday and !shouldMarkAttendance} ? 'opacity-50' : ''"
+                         th:onclick="${isHoliday and !shouldMarkAttendance} ? 'showHolidayMessage()' : 'startQRScanner()'">
+                        <div class="display-1 text-muted mb-3">
+                            <i class="fas fa-camera"></i>
+                        </div>
+                        <h5 th:if="${isHoliday and !shouldMarkAttendance}" class="text-warning">
+                            Scanner Disabled
+                        </h5>
+                        <h5 th:unless="${isHoliday and !shouldMarkAttendance}">
+                            Click to Scan QR Code
+                        </h5>
+                        <p class="text-muted">
+                            <span th:if="${isHoliday and !shouldMarkAttendance}">
+                                QR scanning disabled on holidays
+                            </span>
+                            <span th:unless="${isHoliday and !shouldMarkAttendance}">
+                                Scan student QR code for quick attendance marking
+                            </span>
+                        </p>
+                    </div>
+
+                    <!-- QR Data Form -->
+                    <form th:action="@{/attendance/mark-by-qr}" method="post">
+                        <div class="mb-3">
+                            <label for="qrData" class="form-label">
+                                <i class="fas fa-barcode"></i> QR Code Data
+                            </label>
+                            <textarea class="form-control" id="qrData" name="qrData"
+                                      rows="3" placeholder="QR code data will appear here..."
+                                      th:disabled="${isHoliday and !shouldMarkAttendance}"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Status for QR Scan</label>
+                            <select class="form-select" name="status" required
+                                    th:disabled="${isHoliday and !shouldMarkAttendance}">
+                                <option value="PRESENT">Present</option>
+                                <option value="LATE">Late</option>
+                                <option value="ABSENT">Absent</option>
+                                <option value="EXCUSED">Excused</option>
+                            </select>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-lg"
+                                    th:classappend="${isHoliday and !shouldMarkAttendance} ? 'btn-secondary' : 'btn-success'"
+                                    th:disabled="${isHoliday and !shouldMarkAttendance}">
+                                <i class="fas fa-qrcode"></i>
+                                <span th:if="${isHoliday and !shouldMarkAttendance}">QR Scanning Disabled</span>
+                                <span th:unless="${isHoliday and !shouldMarkAttendance}">Mark via QR Code</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Today's Attendance List -->
+            <div class="card mt-4 shadow">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list"></i> Today's Attendance
+                        <span class="badge bg-primary"
+                              th:text="${todaysAttendance.size()}">0</span>
+                        <small th:if="${isHoliday}" class="text-muted ms-2">
+                            (<span th:if="${shouldMarkAttendance}">Activity Day</span>
+                            <span th:unless="${shouldMarkAttendance}">Holiday Records</span>)
+                        </small>
+                    </h5>
+                </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                    <div th:if="${todaysAttendance.isEmpty()}" class="text-center py-3">
+                        <p class="text-muted">
+                            <span th:if="${isHoliday and !shouldMarkAttendance}">
+                                No attendance records for holidays
+                            </span>
+                            <span th:unless="${isHoliday and !shouldMarkAttendance}">
+                                No attendance marked yet for today
+                            </span>
+                        </p>
+                    </div>
+
+                    <div th:unless="${todaysAttendance.isEmpty()}">
+                        <div th:each="attendance : ${todaysAttendance}"
+                             class="mb-2 p-2 rounded attendance-card"
+                             th:classappend="${attendance.present} ? 'present' :
+                                                 ${attendance.absent} ? 'absent' :
+                                                 ${attendance.status == 'LATE'} ? 'late' : 'excused'">
+                            <div class="row align-items-center">
+                                <div class="col-8">
+                                    <strong th:text="${attendance.student.name}">Student Name</strong><br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-hashtag"></i>
+                                        <span th:text="${attendance.student.rollNumber}">Roll</span> |
+                                        <i class="fas fa-clock"></i>
+                                        <span th:text="${attendance.formattedTime}">Time</span>
+                                    </small>
+                                </div>
+                                <div class="col-4 text-end">
+                                    <span th:if="${attendance.present}"
+                                          class="badge bg-success">Present</span>
+                                    <span th:if="${attendance.absent}"
+                                          class="badge bg-danger">Absent</span>
+                                    <span th:if="${attendance.status == 'LATE'}"
+                                          class="badge bg-warning">Late</span>
+                                    <span th:if="${attendance.status == 'EXCUSED'}"
+                                          class="badge bg-info">Excused</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="bg-light mt-5 py-3">
+    <div class="container text-center">
+        <p class="text-muted mb-0">
+            <i class="fas fa-qrcode"></i> Student QR Attendance System &copy; 2024
+        </p>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    function setStatus(status) {
+        // Check if disabled due to holiday
+        if (document.getElementById('studentIdentifier').disabled) {
+            showHolidayMessage();
+            return;
+        }
+
+        document.getElementById('status').value = status;
+
+        // Update button styles
+        document.querySelectorAll('.quick-mark-btn').forEach(btn => {
+            btn.classList.remove('btn-success', 'btn-danger', 'btn-warning', 'btn-info',
+                'btn-outline-success', 'btn-outline-danger',
+                'btn-outline-warning', 'btn-outline-info');
+            btn.classList.add('btn-outline-secondary');
+        });
+
+        // Highlight selected button
+        let selectedBtn = document.querySelector(`button[onclick="setStatus('${status}')"]`);
+        if (selectedBtn) {
+            selectedBtn.classList.remove('btn-outline-secondary');
+            if (status === 'PRESENT') selectedBtn.classList.add('btn-success');
+            else if (status === 'ABSENT') selectedBtn.classList.add('btn-danger');
+            else if (status === 'LATE') selectedBtn.classList.add('btn-warning');
+            else if (status === 'EXCUSED') selectedBtn.classList.add('btn-info');
+        }
+    }
+
+    function startQRScanner() {
+        // Check if disabled due to holiday
+        if (document.getElementById('qrData').disabled) {
+            showHolidayMessage();
+            return;
+        }
+
+        alert('QR Scanner would open here. In a real implementation, this would access the camera.');
+        // For demo, simulate QR scan
+        document.getElementById('qrData').value =
+            'STUDENT INFORMATION\nID: STU001\nName: John Doe\nRoll: CS001\nCourse: Computer Science';
+    }
+
+    function showHolidayMessage() {
+        alert('Attendance marking is disabled today because it\'s a holiday/non-attendance day.\n\nPlease check the holiday schedule for attendance-enabled activity days.');
+    }
+
+    // Initialize with Present selected
+    document.addEventListener('DOMContentLoaded', () => {
+        setStatus('PRESENT');
+
+        // Disable form submission on holidays when shouldMarkAttendance is false
+        const forms = document.querySelectorAll('form');
+        forms.forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const manualInput = document.getElementById('studentIdentifier');
+                const qrInput = document.getElementById('qrData');
+
+                if ((manualInput && manualInput.disabled) || (qrInput && qrInput.disabled)) {
+                    e.preventDefault();
+                    showHolidayMessage();
+                    return false;
+                }
+            });
+        });
+    });
+</script>
+</body>
+</html>

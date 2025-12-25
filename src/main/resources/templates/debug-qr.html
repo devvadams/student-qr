@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>QR Debug</title>
+</head>
+<body>
+<h1>QR Code Debug Page</h1>
+
+<h2>Test Direct Generation</h2>
+<form action="/student/test-direct" method="post">
+    <input type="text" name="text" value="Test QR Code" placeholder="Enter text for QR">
+    <input type="number" name="width" value="200" placeholder="Width">
+    <input type="number" name="height" value="200" placeholder="Height">
+    <button type="submit">Generate Test QR</button>
+</form>
+
+<h2>Check QR Files</h2>
+<a href="/student/check-files">Check QR Files in Directory</a>
+
+<h2>Test Student QR</h2>
+<a href="/student/test-qr">Generate Test Student QR</a>
+</body>
+</html>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title th:text="${student.name} + ' - Student Details'">Student Details</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <i class="fas fa-qrcode"></i> Student QR System
+    </a>
+    <div class="navbar-nav">
+      <a class="nav-link" href="/student/form">
+        <i class="fas fa-user-plus"></i> Add Student
+      </a>
+      <a class="nav-link" href="/student/list">
+        <i class="fas fa-list"></i> View All
+      </a>
+      <a class="nav-link active" th:href="@{'/student/view/' + ${student.id}}">
+        <i class="fas fa-user"></i> Student Details
+      </a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <!-- Flash Messages -->
+  <div th:if="${param.success}" class="alert alert-success alert-dismissible fade show">
+    <span th:text="${param.message}">Operation successful!</span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+
+  <div th:if="${param.error}" class="alert alert-danger alert-dismissible fade show">
+    <span th:text="${param.error}">Error occurred!</span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+
+  <div class="row">
+    <!-- Student Information -->
+    <!-- Student Photo Section -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5><i class="fas fa-camera"></i> Student Photo</h5>
+      </div>
+      <div class="card-body text-center">
+        <div th:if="${hasPhoto}">
+          <img th:src="'data:image/jpeg;base64,' + ${photoThumbnail}"
+               alt="Student Photo"
+               class="img-thumbnail mb-3"
+               style="max-width: 300px;">
+          <div>
+            <a th:href="@{'/student/update-photo/' + ${student.id}}"
+               class="btn btn-sm btn-warning">
+              <i class="fas fa-camera-retro"></i> Update Photo
+            </a>
+          </div>
+        </div>
+        <div th:unless="${hasPhoto}" class="text-muted">
+          <div class="display-1 mb-3">
+            <i class="fas fa-user-circle"></i>
+          </div>
+          <p>No photo available for this student.</p>
+          <a th:href="@{'/student/update-photo/' + ${student.id}}"
+             class="btn btn-primary">
+            <i class="fas fa-camera"></i> Add Photo Now
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+          <h4><i class="fas fa-user-circle"></i> Student Information</h4>
+        </div>
+        <div class="card-body">
+          <table class="table table-borderless">
+            <tr>
+              <th width="40%"><i class="fas fa-id-card"></i> Student ID:</th>
+              <td th:text="${student.id}">ID</td>
+            </tr>
+            <tr>
+              <th><i class="fas fa-user"></i> Full Name:</th>
+              <td th:text="${student.name}">Name</td>
+            </tr>
+            <tr>
+              <th><i class="fas fa-envelope"></i> Email:</th>
+              <td th:text="${student.email}">Email</td>
+            </tr>
+            <tr>
+              <th><i class="fas fa-graduation-cap"></i> Course:</th>
+              <td><span class="badge bg-info" th:text="${student.course}">Course</span></td>
+            </tr>
+            <tr>
+              <th><i class="fas fa-hashtag"></i> Roll Number:</th>
+              <td><span class="badge bg-secondary" th:text="${student.rollNumber}">Roll</span></td>
+            </tr>
+            <tr>
+              <th><i class="fas fa-calendar-plus"></i> Added On:</th>
+              <td th:text="${student.formattedDate}">Date</td>
+            </tr>
+            <tr th:if="${student.qrCodePath}">
+              <th><i class="fas fa-file-image"></i> QR File:</th>
+              <td>
+                <small class="text-muted" th:text="${student.qrCodePath}">Path</small>
+              </td>
+            </tr>
+          </table>
+        </div>
+        <div class="card-footer">
+          <div class="btn-group">
+            <a href="/student/list" class="btn btn-secondary">
+              <i class="fas fa-arrow-left"></i> Back to List
+            </a>
+            <a th:href="@{'/student/download/' + ${student.id}}" class="btn btn-success">
+              <i class="fas fa-download"></i> Download QR
+            </a>
+            <a th:href="@{'/student/regenerate/' + ${student.id}}" class="btn btn-warning">
+              <i class="fas fa-sync-alt"></i> Regenerate QR
+            </a>
+            <a th:href="@{'/student/delete/' + ${student.id}}"
+               class="btn btn-danger"
+               onclick="return confirm('Are you sure you want to delete this student?')">
+              <i class="fas fa-trash"></i> Delete
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QR Code Display -->
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+          <h4><i class="fas fa-qrcode"></i> Student QR Code</h4>
+        </div>
+        <div class="card-body text-center">
+          <div th:if="${qrCodeBase64}">
+            <img th:src="'data:image/png;base64,' + ${qrCodeBase64}"
+                 alt="QR Code" class="img-fluid mb-3" style="max-width: 300px;">
+
+            <div class="alert alert-info">
+              <h5><i class="fas fa-info-circle"></i> QR Code Information</h5>
+              <p class="mb-1">This QR code contains:</p>
+              <ul class="text-start small">
+                <li>Student ID and Name</li>
+                <li>Email Address</li>
+                <li>Course Information</li>
+                <li>Roll Number</li>
+                <li>Generation Timestamp</li>
+              </ul>
+              <p class="mb-0">Scan this code with any QR scanner app to view student details.</p>
+            </div>
+
+            <div class="btn-group">
+              <button onclick="printQRCode()" class="btn btn-outline-primary">
+                <i class="fas fa-print"></i> Print QR Code
+              </button>
+              <a th:href="@{'/student/download/' + ${student.id}}" class="btn btn-outline-success">
+                <i class="fas fa-download"></i> Save as PNG
+              </a>
+            </div>
+          </div>
+
+          <div th:unless="${qrCodeBase64}" class="alert alert-warning">
+            <h5><i class="fas fa-exclamation-triangle"></i> No QR Code Found</h5>
+            <p>This student doesn't have a QR code generated yet.</p>
+            <a th:href="@{'/student/regenerate/' + ${student.id}}" class="btn btn-warning">
+              <i class="fas fa-qrcode"></i> Generate QR Code Now
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-bolt"></i> Quick Actions</h5>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <a href="/student/form" class="btn btn-primary">
+              <i class="fas fa-user-plus"></i> Add Another Student
+            </a>
+            <a href="/student/list" class="btn btn-outline-secondary">
+              <i class="fas fa-list"></i> View All Students
+            </a>
+            <button onclick="shareStudent()" class="btn btn-outline-info">
+              <i class="fas fa-share-alt"></i> Share Student Info
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="bg-light mt-5 py-3">
+  <div class="container text-center">
+    <p class="text-muted mb-0">
+      <i class="fas fa-qrcode"></i> Student QR Code System &copy; 2024
+    </p>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  function printQRCode() {
+    let printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Print QR Code - ${document.title}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+                        .container { max-width: 400px; margin: 0 auto; }
+                        .student-info { text-align: left; margin: 20px 0; }
+                        .qr-code { width: 300px; height: 300px; margin: 20px auto; }
+                        @media print {
+                            .no-print { display: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h2>Student QR Code</h2>
+                        <div class="student-info">
+                            <p><strong>Name:</strong> [[${student.name}]]</p>
+                            <p><strong>Roll No:</strong> [[${student.rollNumber}]]</p>
+                            <p><strong>Course:</strong> [[${student.course}]]</p>
+                            <p><strong>Generated:</strong> [[${student.formattedDate}]]</p>
+                        </div>
+                        <div class="qr-code">
+                            <img src="data:image/png;base64,[[${qrCodeBase64}]]"
+                                 alt="QR Code" style="width: 100%; height: 100%;">
+                        </div>
+                        <p><em>Scan this QR code to view student information</em></p>
+                        <div class="no-print">
+                            <button onclick="window.print()">Print</button>
+                            <button onclick="window.close()">Close</button>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `.replace(/\[\[/g, '<span th:text="${').replace(/\]\]/g, '}"></span>'));
+
+    // Replace Thymeleaf expressions with actual values
+    let html = printWindow.document.documentElement.innerHTML;
+    html = html.replace(/\[\[/g, '').replace(/\]\]/g, '');
+    printWindow.document.documentElement.innerHTML = html;
+
+    printWindow.document.close();
+    printWindow.focus();
+  }
+
+  function shareStudent() {
+    if (navigator.share) {
+      navigator.share({
+        title: 'Student Information: ' + [[${student.name}]],
+        text: 'Check out this student QR code',
+        url: window.location.href
+      });
+    } else {
+      alert('Share URL: ' + window.location.href);
+    }
+  }
+
+  // Auto-dismiss alerts
+  setTimeout(() => {
+    document.querySelectorAll('.alert').forEach(alert => {
+      let bsAlert = new bootstrap.Alert(alert);
+      bsAlert.close();
+    });
+  }, 5000);
+</script>
+</body>
+</html>

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student List - QR Code System</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    .student-card {
+      transition: transform 0.2s;
+    }
+    .student-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .qr-small {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+    }
+    .photo-thumbnail {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+    .action-buttons .btn {
+      margin: 2px;
+    }
+    .no-photo-placeholder {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background-color: #f8f9fa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <i class="fas fa-qrcode"></i> Student QR System
+    </a>
+    <div class="navbar-nav">
+      <a class="nav-link" href="/student/form">
+        <i class="fas fa-user-plus"></i> Add Student
+      </a>
+      <a class="nav-link active" href="/student/list">
+        <i class="fas fa-list"></i> View All
+      </a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <!-- Flash Messages -->
+  <div th:if="${param.success}" class="alert alert-success alert-dismissible fade show">
+    <span th:text="${param.message}">Operation successful!</span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+
+  <div th:if="${param.error}" class="alert alert-danger alert-dismissible fade show">
+    <span th:text="${param.error}">Error occurred!</span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+
+  <!-- Page Header -->
+  <div class="row mb-4">
+    <div class="col-md-8">
+      <h1>
+        <i class="fas fa-users"></i> Student Directory
+        <span class="badge bg-primary" th:text="${totalCount}">0</span>
+      </h1>
+      <p class="text-muted">View and manage all student QR codes</p>
+    </div>
+    <div class="col-md-4 text-end">
+      <a href="/student/form" class="btn btn-success">
+        <i class="fas fa-plus-circle"></i> Add New Student
+      </a>
+    </div>
+  </div>
+
+  <!-- Search Bar -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="get" action="/student/list" class="row g-3">
+        <div class="col-md-10">
+          <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-search"></i>
+                            </span>
+            <input type="text" class="form-control" name="search"
+                   th:value="${searchTerm}"
+                   placeholder="Search by name, email, course, or roll number...">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fas fa-search"></i> Search
+          </button>
+        </div>
+      </form>
+      <div th:if="${searchTerm}" class="mt-2">
+        <small class="text-muted">
+          Found <span th:text="${studentCount}">0</span> student(s) matching "<span th:text="${searchTerm}"></span>"
+          <a href="/student/list" class="ms-2">Clear search</a>
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Students Grid -->
+  <div th:if="${students.isEmpty()}" class="text-center py-5">
+    <div class="display-1 text-muted">
+      <i class="fas fa-user-slash"></i>
+    </div>
+    <h3 class="text-muted">No students found</h3>
+    <p>Add your first student to get started!</p>
+    <a href="/student/form" class="btn btn-primary btn-lg">
+      <i class="fas fa-user-plus"></i> Add First Student
+    </a>
+  </div>
+
+  <div th:unless="${students.isEmpty()}" class="row">
+    <div th:each="student : ${students}" class="col-md-6 col-lg-4 mb-4">
+      <div class="card student-card h-100">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+          <div>
+            <span class="badge bg-info" th:text="${student.course}">Course</span>
+            <span class="badge bg-secondary" th:text="${student.rollNumber}">Roll</span>
+          </div>
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                    type="button" data-bs-toggle="dropdown">
+              <i class="fas fa-ellipsis-v"></i>
+            </button>
+            <ul class="dropdown-menu">
+              <li>
+                <a class="dropdown-item" th:href="@{'/student/view/' + ${student.id}}">
+                  <i class="fas fa-eye"></i> View Details
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" th:href="@{'/student/download/' + ${student.id}}">
+                  <i class="fas fa-download"></i> Download QR
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" th:href="@{'/student/regenerate/' + ${student.id}}">
+                  <i class="fas fa-sync-alt"></i> Regenerate QR
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item text-danger"
+                   th:href="@{'/student/delete/' + ${student.id}}"
+                   onclick="return confirm('Are you sure you want to delete this student?')">
+                  <i class="fas fa-trash"></i> Delete
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row align-items-center">
+            <!-- Photo Column -->
+            <div class="col-4 text-center">
+              <div th:if="${photoThumbnailMap != null && photoThumbnailMap.containsKey(student.id)}">
+                <img th:src="'data:image/jpeg;base64,' + ${photoThumbnailMap.get(student.id)}"
+                     alt="Student Photo"
+                     class="photo-thumbnail mb-2">
+                <small class="d-block text-success">
+                  <i class="fas fa-camera"></i> Photo
+                </small>
+              </div>
+              <div th:unless="${photoThumbnailMap != null && photoThumbnailMap.containsKey(student.id)}">
+                <div class="no-photo-placeholder mb-2">
+                  <i class="fas fa-user text-muted"></i>
+                </div>
+                <small class="d-block text-muted">
+                  <i class="fas fa-camera-slash"></i> No Photo
+                </small>
+              </div>
+            </div>
+
+            <!-- QR Code Column -->
+            <div class="col-4 text-center">
+              <div th:if="${qrCodeMap != null && qrCodeMap.containsKey(student.id) && qrCodeMap.get(student.id) != 'error'}">
+                <img th:src="'data:image/png;base64,' + ${qrCodeMap.get(student.id)}"
+                     alt="QR Code" class="qr-small img-thumbnail">
+                <small class="d-block text-primary mt-1">
+                  <i class="fas fa-qrcode"></i> QR Code
+                </small>
+              </div>
+              <div th:if="${qrCodeMap != null && qrCodeMap.containsKey(student.id) && qrCodeMap.get(student.id) == 'error'}">
+                <div class="qr-small img-thumbnail bg-light d-flex align-items-center justify-content-center">
+                  <i class="fas fa-exclamation-triangle text-warning"></i>
+                </div>
+                <small class="d-block text-warning mt-1">
+                  <i class="fas fa-exclamation-circle"></i> Error
+                </small>
+              </div>
+              <div th:unless="${qrCodeMap != null && qrCodeMap.containsKey(student.id)}">
+                <div class="qr-small img-thumbnail bg-light d-flex align-items-center justify-content-center">
+                  <i class="fas fa-question text-muted"></i>
+                </div>
+                <small class="d-block text-muted mt-1">
+                  <i class="fas fa-qrcode"></i> No QR
+                </small>
+              </div>
+            </div>
+
+            <!-- Info Column -->
+            <div class="col-4">
+              <h6 class="mb-1" th:text="${student.name}">Name</h6>
+              <p class="mb-1">
+                <small class="text-muted">
+                  <i class="fas fa-hashtag"></i>
+                  <span th:text="${student.rollNumber}">Roll</span>
+                </small>
+              </p>
+              <p class="mb-0">
+                <small class="text-muted">
+                  <i class="fas fa-graduation-cap"></i>
+                  <span th:text="${student.course}">Course</span>
+                </small>
+              </p>
+            </div>
+          </div>
+
+          <div class="row mt-3">
+            <div class="col-12">
+              <p class="mb-1">
+                <small class="text-muted">
+                  <i class="fas fa-envelope"></i>
+                  <span th:text="${student.email}">email@example.com</span>
+                </small>
+              </p>
+              <p class="mb-0">
+                <small class="text-muted">
+                  <i class="fas fa-calendar"></i>
+                  Added: <span th:text="${student.formattedDate}">2024-01-01</span>
+                </small>
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer bg-transparent">
+          <div class="d-flex justify-content-between">
+            <a th:href="@{'/student/view/' + ${student.id}}"
+               class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-eye"></i> View
+            </a>
+            <a th:href="@{'/student/download/' + ${student.id}}"
+               class="btn btn-sm btn-outline-success">
+              <i class="fas fa-download"></i> QR Code
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Student Count Summary -->
+  <div th:unless="${students.isEmpty()}" class="card mt-4">
+    <div class="card-body text-center">
+      <h5 class="card-title">
+        <i class="fas fa-chart-bar"></i> Summary
+      </h5>
+      <p class="card-text">
+        Showing <span th:text="${studentCount}">0</span> student(s) |
+        Total in system: <span th:text="${totalCount}">0</span>
+      </p>
+      <div class="btn-group">
+        <a href="/student/form" class="btn btn-primary">
+          <i class="fas fa-user-plus"></i> Add Another Student
+        </a>
+        <a href="/" class="btn btn-outline-secondary">
+          <i class="fas fa-home"></i> Back to Home
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="bg-light mt-5 py-3">
+  <div class="container text-center">
+    <p class="text-muted mb-0">
+      <i class="fas fa-qrcode"></i> Student QR Code System &copy; 2024
+    </p>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Auto-dismiss alerts after 5 seconds
+  setTimeout(() => {
+    document.querySelectorAll('.alert').forEach(alert => {
+      let bsAlert = new bootstrap.Alert(alert);
+      bsAlert.close();
+    });
+  }, 5000);
+</script>
+</body>
+</html>

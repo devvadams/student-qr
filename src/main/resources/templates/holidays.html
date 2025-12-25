@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Holidays - Student QR System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .holiday-card {
+            transition: transform 0.3s;
+            border-left: 5px solid;
+        }
+        .holiday-card:hover {
+            transform: translateY(-5px);
+        }
+        .holiday-PUBLIC_HOLIDAY { border-left-color: #dc3545; }
+        .holiday-SCHOOL_HOLIDAY { border-left-color: #ffc107; }
+        .holiday-VACATION { border-left-color: #17a2b8; }
+        .holiday-SPECIAL_EVENT { border-left-color: #28a745; }
+        .holiday-SCHOOL_ACTIVITY { border-left-color: #6610f2; }
+        .holiday-EXAMINATION { border-left-color: #6c757d; }
+        .holiday-BREAK { border-left-color: #fd7e14; }
+        .holiday-CUSTOM { border-left-color: #20c997; }
+        .date-range-badge {
+            background: #e9ecef;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+        .auto-mark-badge {
+            background: linear-gradient(45deg, #007bff, #6610f2);
+            color: white;
+        }
+        .school-activity-badge {
+            background: linear-gradient(45deg, #20c997, #17a2b8);
+            color: white;
+        }
+        .resumption-badge {
+            background: linear-gradient(45deg, #fd7e14, #e83e8c);
+            color: white;
+        }
+        .calendar-day {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .calendar-day.holiday {
+            background-color: #ffcccc;
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .calendar-day.today {
+            background-color: #007bff;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+<!-- Navigation -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="/dashboard">
+            <i class="fas fa-qrcode"></i> Student QR System
+        </a>
+        <div class="navbar-nav">
+            <a class="nav-link" href="/dashboard">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </a>
+            <a class="nav-link active" href="/holidays">
+                <i class="fas fa-calendar-day"></i> Holidays
+            </a>
+            <a class="nav-link" href="/holidays/calendar">
+                <i class="fas fa-calendar-alt"></i> Calendar
+            </a>
+            <a class="nav-link" href="/attendance/mark">
+                <i class="fas fa-clipboard-check"></i> Attendance
+            </a>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <!-- Flash Messages -->
+    <div th:if="${param.success}" class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i>
+        <span th:text="${param.message}">Operation successful!</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div th:if="${param.error}" class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-circle"></i>
+        <span th:text="${param.message}">Error occurred!</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1><i class="fas fa-calendar-day"></i> Holiday Management</h1>
+            <p class="text-muted">Manage public holidays, school breaks, and special events</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="/holidays/add" class="btn btn-success me-2">
+                <i class="fas fa-plus-circle"></i> Add Holiday
+            </a>
+            <a href="/holidays/initialize" class="btn btn-outline-info"
+               onclick="return confirm('Initialize predefined holidays for current year?')">
+                <i class="fas fa-bolt"></i> Initialize
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <div class="display-6 text-danger"
+                         th:text="${holidaySummary.upcomingCount}">0</div>
+                    <small class="text-muted">Upcoming Holidays</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <div class="display-6"
+                         th:text="${holidaySummary.isNoAttendanceDay ? 'Yes' : 'No'}">No</div>
+                    <small class="text-muted">Today is Holiday</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <div class="display-6 text-warning"
+                         th:text="${holidaySummary.countByType != null ? holidaySummary.countByType.getOrDefault('VACATION', 0) : 0}">0</div>
+                    <small class="text-muted">Vacation Days</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <div class="display-6 text-success"
+                         th:text="${holidaySummary.countByType != null ? holidaySummary.countByType.getOrDefault('SCHOOL_ACTIVITY', 0) : 0}">0</div>
+                    <small class="text-muted">School Activities</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Today's Holidays Alert -->
+    <div th:if="${holidaySummary.todayHolidays != null && !holidaySummary.todayHolidays.isEmpty()}"
+         class="alert alert-warning mb-4">
+        <h5><i class="fas fa-calendar-check"></i> Today's Holidays</h5>
+        <div class="row">
+            <div th:each="holiday : ${holidaySummary.todayHolidays}" class="col-md-4 mb-2">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 th:text="${holiday.name}">Holiday Name</h6>
+                        <small class="text-muted" th:text="${holiday.description}"></small>
+                        <div class="mt-2">
+                            <span class="badge" th:class="${holiday.getTypeBadgeClass()}"
+                                  th:text="${holiday.type.displayName}"></span>
+                            <span th:if="${holiday.isMultiDay()}" class="badge bg-secondary ms-1">
+                                <span th:text="${holiday.getNumberOfDays()}"></span> days
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4 shadow">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-filter"></i> Filter Holidays</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Year</label>
+                    <select class="form-select" name="year">
+                        <option value="">All Years</option>
+                        <option th:each="year : ${availableYears}"
+                                th:value="${year}"
+                                th:text="${year}"
+                                th:selected="${selectedYear != null && selectedYear == year}">
+                        </option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Type</label>
+                    <select class="form-select" name="type">
+                        <option value="">All Types</option>
+                        <option value="PUBLIC_HOLIDAY" th:selected="${selectedType == 'PUBLIC_HOLIDAY'}">Public Holidays</option>
+                        <option value="SCHOOL_HOLIDAY" th:selected="${selectedType == 'SCHOOL_HOLIDAY'}">School Holidays</option>
+                        <option value="VACATION" th:selected="${selectedType == 'VACATION'}">Vacations</option>
+                        <option value="SPECIAL_EVENT" th:selected="${selectedType == 'SPECIAL_EVENT'}">Special Events</option>
+                        <option value="SCHOOL_ACTIVITY" th:selected="${selectedType == 'SCHOOL_ACTIVITY'}">School Activities</option>
+                        <option value="EXAMINATION" th:selected="${selectedType == 'EXAMINATION'}">Examinations</option>
+                        <option value="BREAK" th:selected="${selectedType == 'BREAK'}">Breaks</option>
+                        <option value="CUSTOM" th:selected="${selectedType == 'CUSTOM'}">Custom</option>
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Holidays List -->
+    <div class="card shadow">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-list"></i> Holidays List
+                <span class="badge bg-primary" th:text="${holidays.size()}">0</span>
+            </h5>
+            <a href="/holidays/add" class="btn btn-sm btn-success">
+                <i class="fas fa-plus"></i> Add New
+            </a>
+        </div>
+        <div class="card-body">
+            <div th:if="${holidays.isEmpty()}" class="text-center py-5">
+                <div class="display-1 text-muted">
+                    <i class="fas fa-calendar-times"></i>
+                </div>
+                <h3 class="text-muted">No holidays found</h3>
+                <p>Add your first holiday or initialize predefined holidays!</p>
+                <a href="/holidays/add" class="btn btn-primary me-2">
+                    <i class="fas fa-plus-circle"></i> Add Holiday
+                </a>
+                <a href="/holidays/initialize" class="btn btn-outline-info">
+                    <i class="fas fa-bolt"></i> Initialize
+                </a>
+            </div>
+
+            <div th:unless="${holidays.isEmpty()}" class="row">
+                <div th:each="holiday : ${holidays}" class="col-md-6 mb-4">
+                    <div class="card holiday-card h-100"
+                         th:classappend="'holiday-' + ${holiday.type}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <h5 class="card-title" th:text="${holiday.name}">Holiday Name</h5>
+                                    <div class="mb-2">
+                                        <span class="badge" th:class="${holiday.getTypeBadgeClass()}"
+                                              th:text="${holiday.type.displayName}">Type</span>
+
+                                        <span th:if="${holiday.isMultiDay()}" class="badge bg-secondary">
+                                            <i class="fas fa-calendar-week"></i>
+                                            <span th:text="${holiday.getNumberOfDays()} + ' days'"></span>
+                                        </span>
+
+                                        <span th:if="${holiday.autoMarkAttendance}" class="badge auto-mark-badge">
+                                            <i class="fas fa-robot"></i> Auto-mark:
+                                            <span th:text="${holiday.attendanceStatus}"></span>
+                                        </span>
+
+                                        <span th:if="${holiday.schoolActivity}" class="badge school-activity-badge">
+                                            <i class="fas fa-running"></i> School Activity
+                                        </span>
+
+                                        <span th:if="${holiday.affectsResumption && holiday.resumptionDate != null}"
+                                              class="badge resumption-badge">
+                                            <i class="fas fa-school"></i> Resumes:
+                                            <span th:text="${#temporals.format(holiday.resumptionDate, 'MMM dd')}"></span>
+                                        </span>
+
+                                        <span th:if="${holiday.recurringYearly}" class="badge bg-info">
+                                            <i class="fas fa-redo"></i> Recurring
+                                        </span>
+
+                                        <span th:if="${!holiday.active}" class="badge bg-secondary">
+                                            <i class="fas fa-ban"></i> Inactive
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                                            type="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li>
+                                            <a class="dropdown-item" th:href="@{'/holidays/edit/' + ${holiday.id}}">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" th:href="@{'/holidays/toggle/' + ${holiday.id}}">
+                                                <i class="fas fa-power-off"></i>
+                                                <span th:text="${holiday.active ? 'Deactivate' : 'Activate'}"></span>
+                                            </a>
+                                        </li>
+                                        <li th:if="${holiday.autoMarkAttendance}">
+                                            <a class="dropdown-item" th:href="@{'/holidays/auto-mark/' + ${holiday.id}}"
+                                               onclick="return confirm('Auto-mark attendance for this holiday period?')">
+                                                <i class="fas fa-robot"></i> Run Auto-mark
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item text-danger"
+                                               th:href="@{'/holidays/delete/' + ${holiday.id}}"
+                                               onclick="return confirm('Are you sure you want to delete this holiday?')">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <p class="card-text" th:text="${holiday.description}">Description</p>
+
+                            <!-- Enhanced Date Range Display -->
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <p class="mb-1">
+                                        <strong><i class="fas fa-calendar-alt"></i> Date Range:</strong>
+                                    </p>
+                                    <div class="date-range-badge d-inline-block">
+                                        <span th:text="${holiday.getFormattedDateRange()}">Date Range</span>
+                                        <span th:if="${holiday.isMultiDay()}" class="text-muted ms-2">
+                                            (<span th:text="${holiday.getNumberOfDays()}"></span> days)
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Holiday Settings -->
+                            <div class="row">
+                                <div class="col-6">
+                                    <p class="mb-1">
+                                        <strong><i class="fas fa-clipboard-check"></i> Attendance:</strong>
+                                    </p>
+                                    <div>
+                                        <span th:if="${holiday.noAttendance}" class="text-danger">
+                                            <i class="fas fa-times-circle"></i> Not Allowed
+                                        </span>
+                                        <span th:unless="${holiday.noAttendance}" class="text-success">
+                                            <i class="fas fa-check-circle"></i> Allowed
+                                        </span>
+
+                                        <div th:if="${holiday.schoolActivity}" class="mt-1">
+                                            <small class="text-muted">
+                                                <i class="fas fa-info-circle"></i> School activity day
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-6">
+                                    <p class="mb-1">
+                                        <strong><i class="fas fa-cog"></i> Settings:</strong>
+                                    </p>
+                                    <div class="small">
+                                        <div th:if="${holiday.autoMarkAttendance}">
+                                            <i class="fas fa-check text-success"></i> Auto-mark enabled
+                                        </div>
+                                        <div th:if="${holiday.affectsResumption && holiday.resumptionDate != null}">
+                                            <i class="fas fa-school text-warning"></i> Affects resumption
+                                        </div>
+                                        <div th:if="${holiday.activityDescription != null}">
+                                            <i class="fas fa-sticky-note text-info"></i> Activity notes
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Activity Description (if available) -->
+                            <div th:if="${holiday.activityDescription != null && !holiday.activityDescription.isEmpty()}"
+                                 class="mt-3 p-2 bg-light rounded">
+                                <strong><i class="fas fa-sticky-note"></i> Activity Details:</strong>
+                                <p class="mb-0 small" th:text="${holiday.activityDescription}"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Holiday Types Legend -->
+    <div class="card mt-4 shadow">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-key"></i> Holiday Types Legend</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3 mb-2">
+                    <span class="badge bg-danger me-2">PH</span>
+                    <small>Public Holiday - National/State holidays</small>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <span class="badge bg-warning me-2">SH</span>
+                    <small>School Holiday - Institution-specific</small>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <span class="badge bg-info me-2">V</span>
+                    <small>Vacation - Extended breaks (summer/winter)</small>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <span class="badge bg-success me-2">SE</span>
+                    <small>Special Event - Teachers/Children's Day</small>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <span class="badge bg-primary me-2">SA</span>
+                    <small>School Activity - Sports, competitions</small>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <span class="badge bg-secondary me-2">EX</span>
+                    <small>Examination - Exam periods</small>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <span class="badge bg-dark me-2">BR</span>
+                    <small>Break - Short breaks</small>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <span class="badge bg-success me-2">CU</span>
+                    <small>Custom - Custom holidays</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="bg-light mt-5 py-3">
+    <div class="container text-center">
+        <p class="text-muted mb-0">
+            <i class="fas fa-calendar-alt"></i> Holiday Management System &copy; 2024
+        </p>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity6">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Student QR System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .dashboard-card {
+            transition: transform 0.3s;
+            border: none;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+        }
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+        .welcome-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 30px;
+        }
+        .quick-stats {
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+        }
+        .stat-item {
+            padding: 15px;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            display: block;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        .holiday-modal-btn:hover {
+            background-color: #ffc107;
+            color: #212529;
+        }
+    </style>
+</head>
+<body>
+<!-- Navigation Bar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/dashboard">
+            <i class="fas fa-qrcode"></i> Student QR System
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link active" href="/dashboard">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </a>
+                </li>
+                <li sec:authorize="hasRole('USER')" class="nav-item">
+                    <a class="nav-link" href="/student/list">
+                        <i class="fas fa-users"></i> Students
+                    </a>
+                </li>
+                <li sec:authorize="hasAnyRole('TEACHER', 'ADMIN')" class="nav-item">
+                    <a class="nav-link" href="/attendance/mark">
+                        <i class="fas fa-clipboard-check"></i> Attendance
+                    </a>
+                </li>
+                <li sec:authorize="hasRole('ADMIN')" class="nav-item">
+                    <a class="nav-link" href="/student/form">
+                        <i class="fas fa-user-plus"></i> Add Student
+                    </a>
+                </li>
+                <!-- Add Holiday Link for Admin -->
+                <li sec:authorize="hasRole('ADMIN')" class="nav-item">
+                    <a class="nav-link" href="/holidays">
+                        <i class="fas fa-calendar-alt"></i> Holidays
+                    </a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-circle"></i>
+                        <span sec:authentication="name">User</span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li>
+                                <span class="dropdown-item-text">
+                                    <small>Logged in as: <span sec:authentication="name"></span></small>
+                                </span>
+                        </li>
+                        <li>
+                                <span class="dropdown-item-text">
+                                    <small>Roles:
+                                        <span sec:authentication="principal.authorities">ROLE_USER</span>
+                                    </small>
+                                </span>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="/profile">
+                                <i class="fas fa-user-cog"></i> Profile
+                            </a>
+                        </li>
+                        <li>
+                            <form th:action="@{/logout}" method="post" style="display: inline;">
+                                <button type="submit" class="dropdown-item text-danger">
+                                    <i class="fas fa-sign-out-alt"></i> Logout
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <!-- Welcome Section -->
+    <div class="welcome-section mb-4">
+        <h1><i class="fas fa-tachometer-alt"></i> Dashboard</h1>
+        <p class="lead mb-0">
+            Welcome back, <span sec:authentication="name">User</span>!
+            <span sec:authorize="hasRole('ADMIN')" class="badge bg-warning">Administrator</span>
+            <span sec:authorize="hasRole('TEACHER')" class="badge bg-info">Teacher</span>
+            <span sec:authorize="hasRole('USER')" class="badge bg-secondary">User</span>
+        </p>
+    </div>
+    <!-- Attendance Statistics (for Teachers and Admins) -->
+    <div th:if="${isTeacher}" class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header" th:class="${isHolidayToday} ? 'bg-warning text-dark' : 'bg-success text-white'">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clipboard-check"></i>
+                        <span th:text="${isHolidayToday} ? 'Today is a Holiday' : 'Today\'s Attendance'"></span>
+                        <span th:if="${!isHolidayToday}" class="badge bg-light text-dark"
+                              th:text="${markedToday} + '/' + ${totalStudents}">0/0</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div th:if="${isHolidayToday}" class="text-center py-3">
+                        <div class="display-4 text-warning mb-3">
+                            <i class="fas fa-calendar-times"></i>
+                        </div>
+                        <h4>No Attendance Today</h4>
+                        <p class="text-muted">Today is a holiday. Attendance marking is disabled.</p>
+                        <div th:if="${todayHolidays != null && !todayHolidays.isEmpty()}">
+                            <p><strong>Holidays:</strong></p>
+                            <div th:each="holiday : ${todayHolidays}" class="badge bg-warning me-2 mb-2">
+                                <span th:text="${holiday.name}"></span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-warning holiday-modal-btn mt-2" data-bs-toggle="modal" data-bs-target="#holidayModal">
+                            <i class="fas fa-info-circle"></i> View Holiday Details
+                        </button>
+                    </div>
+
+                    <div th:unless="${isHolidayToday}">
+                        <!-- Quick Stats -->
+                        <div class="row text-center mb-4">
+                            <div class="col-md-2">
+                                <div class="display-5 text-success" th:text="${presentToday}">0</div>
+                                <small class="text-muted">Present</small>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="display-5 text-danger" th:text="${absentToday}">0</div>
+                                <small class="text-muted">Absent</small>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="display-5 text-warning" th:text="${unmarkedToday}">0</div>
+                                <small class="text-muted">Unmarked</small>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="display-5 text-info" th:text="${markedToday}">0</div>
+                                <small class="text-muted">Marked</small>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="display-5" th:text="${totalStudents}">0</div>
+                                <small class="text-muted">Total Students</small>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="display-5 text-primary"
+                                     th:text="${#numbers.formatDecimal(attendancePercentage, 1, 1)} + '%'">0%</div>
+                                <small class="text-muted">Attendance %</small>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Attendance Progress</span>
+                                <span th:text="${#numbers.formatDecimal(attendancePercentage, 1, 1)} + '%'">0%</span>
+                            </div>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar bg-success" role="progressbar"
+                                     th:style="'width: ' + ${attendancePercentage} + '%;'"
+                                     th:attr="aria-valuenow=${attendancePercentage}"
+                                     aria-valuemin="0" aria-valuemax="100">
+                                    <span th:text="${#numbers.formatDecimal(attendancePercentage, 1, 1)} + '%'">0%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="d-grid gap-2 d-md-block">
+                            <a href="/attendance/mark" class="btn btn-primary">
+                                <i class="fas fa-clipboard-check"></i> Mark Attendance
+                            </a>
+                            <a href="/attendance/records" class="btn btn-outline-primary">
+                                <i class="fas fa-list-alt"></i> View Records
+                            </a>
+                            <a href="/attendance/report" class="btn btn-outline-info">
+                                <i class="fas fa-chart-bar"></i> Generate Report
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weekly Stats Card -->
+    <div th:if="${isTeacher && weeklyStats != null}" class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line"></i> Weekly Attendance Statistics
+                        <span class="badge bg-light text-dark">
+                        <span th:text="${#dates.format(weeklyStats.startDate, 'MMM dd')}"></span> -
+                        <span th:text="${#dates.format(weeklyStats.endDate, 'MMM dd')}"></span>
+                    </span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="display-6 text-primary"
+                                 th:text="${weeklyStats.totalAttendanceRecords}">0</div>
+                            <small class="text-muted">Total Records</small>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="display-6 text-success"
+                                 th:text="${weeklyStats.totalPresent}">0</div>
+                            <small class="text-muted">Total Present</small>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="display-6 text-danger"
+                                 th:text="${weeklyStats.totalAbsent}">0</div>
+                            <small class="text-muted">Total Absent</small>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="display-6 text-warning"
+                                 th:text="${#numbers.formatDecimal(weeklyStats.attendanceRate, 1, 1)} + '%'">0%</div>
+                            <small class="text-muted">Weekly Rate</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Flash Messages -->
+    <div th:if="${param.success}" class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i>
+        <span th:text="${param.message}">Operation successful!</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3" sec:authorize="hasAnyRole('TEACHER', 'ADMIN')">
+            <div class="card dashboard-card shadow">
+                <div class="card-body text-center">
+                    <div class="card-icon text-primary">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3 th:text="${totalStudents != null ? totalStudents : '0'}">0</h3>
+                    <p class="text-muted">Total Students</p>
+                    <a href="/student/list" class="btn btn-outline-primary btn-sm">View All</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3" sec:authorize="hasAnyRole('TEACHER', 'ADMIN')">
+            <div class="card dashboard-card shadow">
+                <div class="card-body text-center">
+                    <div class="card-icon text-success">
+                        <i class="fas fa-clipboard-check"></i>
+                    </div>
+                    <h3 th:text="${presentToday != null ? presentToday : '0'}">0</h3>
+                    <p class="text-muted">Present Today</p>
+                    <a href="/attendance/mark" class="btn btn-outline-success btn-sm">Mark Attendance</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3" sec:authorize="hasRole('ADMIN')">
+            <div class="card dashboard-card shadow">
+                <div class="card-body text-center">
+                    <div class="card-icon text-warning">
+                        <i class="fas fa-qrcode"></i>
+                    </div>
+                    <h3 th:text="${qrGenerated != null ? qrGenerated : '0'}">0</h3>
+                    <p class="text-muted">QR Codes</p>
+                    <a href="/student/form" class="btn btn-outline-warning btn-sm">Generate New</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card dashboard-card shadow">
+                <div class="card-body text-center">
+                    <div class="card-icon text-info">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <h3 th:text="${#dates.format(#dates.createNow(), 'dd')}">Today</h3>
+                    <p th:text="${#dates.format(#dates.createNow(), 'MMMM yyyy')}">Date</p>
+                    <a href="/attendance/records" class="btn btn-outline-info btn-sm">View Records</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Holiday Today Card -->
+        <div class="col-md-3 mb-3">
+            <div class="card dashboard-card shadow">
+                <div class="card-body text-center">
+                    <div class="card-icon" th:class="${isHolidayToday} ? 'text-warning' : 'text-success'">
+                        <i class="fas fa-calendar-day"></i>
+                    </div>
+                    <h3 th:text="${isHolidayToday} ? 'Yes' : 'No'">No</h3>
+                    <p class="text-muted" th:text="${isHolidayToday} ? 'Holiday Today' : 'Regular Day'">Today</p>
+                    <a href="#" th:if="${isHolidayToday}" class="btn btn-outline-warning btn-sm holiday-modal-btn"
+                       data-bs-toggle="modal" data-bs-target="#holidayModal">
+                        View Info
+                    </a>
+                    <a href="/calendar" th:unless="${isHolidayToday}" class="btn btn-outline-info btn-sm">
+                        Calendar
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Holidays Card (Admin Only) -->
+        <div class="col-md-3 mb-3" sec:authorize="hasRole('ADMIN')">
+            <div class="card dashboard-card shadow">
+                <div class="card-body text-center">
+                    <div class="card-icon text-danger">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <h3 th:text="${totalHolidays != null ? totalHolidays : '0'}">0</h3>
+                    <p class="text-muted">Total Holidays</p>
+                    <a href="/holidays" class="btn btn-outline-danger btn-sm">Manage</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Holiday Management Section (Admin Only) -->
+    <div class="col-md-12 mb-4" sec:authorize="hasRole('ADMIN')">
+        <div class="card shadow">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-calendar-alt"></i> Holiday & Activity Management
+                    <span class="badge bg-light text-dark" th:text="${totalHolidays != null ? totalHolidays : '0'}">0</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    Manage school holidays, activities, and special events. Configure date ranges for breaks,
+                    vacations, and school activities with custom attendance rules.
+                </p>
+
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <div class="display-4 text-danger mb-2">
+                                    <i class="fas fa-list"></i>
+                                </div>
+                                <h5>All Holidays</h5>
+                                <p class="text-muted">View and manage all holidays</p>
+                                <a href="/holidays" class="btn btn-danger w-100">
+                                    <i class="fas fa-eye"></i> View All
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <div class="display-4 text-success mb-2">
+                                    <i class="fas fa-plus-circle"></i>
+                                </div>
+                                <h5>Add Holiday</h5>
+                                <p class="text-muted">Create new holidays or activities</p>
+                                <a href="/holidays/create" class="btn btn-success w-100">
+                                    <i class="fas fa-plus"></i> Add New
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <div class="display-4 text-primary mb-2">
+                                    <i class="fas fa-calendar"></i>
+                                </div>
+                                <h5>Calendar View</h5>
+                                <p class="text-muted">View holidays in calendar format</p>
+                                <a href="/holidays/calendar" class="btn btn-primary w-100">
+                                    <i class="fas fa-calendar-alt"></i> View Calendar
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <div class="display-4 text-warning mb-2">
+                                    <i class="fas fa-chart-pie"></i>
+                                </div>
+                                <h5>Statistics</h5>
+                                <p class="text-muted">View holiday statistics</p>
+                                <a href="/holidays/stats" class="btn btn-warning w-100">
+                                    <i class="fas fa-chart-bar"></i> View Stats
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Holiday Stats -->
+                <div th:if="${holidayStats != null}" class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="fas fa-chart-pie"></i> Holiday Statistics</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-md-3">
+                                        <div class="display-6 text-danger"
+                                             th:text="${holidayStats.upcomingCount}">0</div>
+                                        <small class="text-muted">Upcoming Holidays</small>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="display-6 text-info"
+                                             th:text="${holidayStats.schoolActivities}">0</div>
+                                        <small class="text-muted">School Activities</small>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="display-6 text-warning"
+                                             th:text="${holidayStats.vacations}">0</div>
+                                        <small class="text-muted">Vacations</small>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="display-6 text-success"
+                                             th:text="${holidayStats.specialEvents}">0</div>
+                                        <small class="text-muted">Special Events</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add upcoming holidays section -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-calendar-alt"></i> Upcoming Holidays & Events
+                    <span class="badge bg-light text-dark" th:text="${upcomingHolidays.size()}">0</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div th:if="${upcomingHolidays.isEmpty()}" class="text-center">
+                    <p class="text-muted">No upcoming holidays or events scheduled</p>
+                </div>
+                <div th:unless="${upcomingHolidays.isEmpty()}">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Date Range</th>
+                                <th>Attendance</th>
+                                <th>Description</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="holiday : ${upcomingHolidays}">
+                                <td>
+                                    <strong th:text="${holiday.name}"></strong>
+                                </td>
+                                <td>
+                                        <span class="badge" th:class="${holiday.getTypeBadgeClass()}"
+                                              th:text="${holiday.getTypeDisplayName()}"></span>
+                                </td>
+                                <td th:text="${holiday.getFormattedDateRange()}"></td>
+                                <td>
+                                        <span th:if="${holiday.noAttendance}" class="badge bg-danger">
+                                            <i class="fas fa-ban"></i> No Attendance
+                                        </span>
+                                    <span th:unless="${holiday.noAttendance}" class="badge bg-success">
+                                            <i class="fas fa-check"></i> Attendance Allowed
+                                        </span>
+                                </td>
+                                <td>
+                                    <small class="text-muted" th:text="${holiday.description}"></small>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <!-- Admin Actions -->
+        <div class="col-md-6 mb-4" sec:authorize="hasRole('ADMIN')">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-user-shield"></i> Administrator Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="/student/form" class="btn btn-warning">
+                            <i class="fas fa-user-plus"></i> Add New Student
+                        </a>
+                        <a href="/student/list" class="btn btn-outline-warning">
+                            <i class="fas fa-users"></i> Manage Students
+                        </a>
+                        <a href="/holidays" class="btn btn-outline-danger">
+                            <i class="fas fa-calendar-alt"></i> Manage Holidays
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Teacher Actions -->
+        <div class="col-md-6 mb-4" sec:authorize="hasAnyRole('TEACHER', 'ADMIN')">
+            <div class="card shadow">
+                <div class="card-header bg-info text-dark">
+                    <h5 class="mb-0"><i class="fas fa-chalkboard-teacher"></i> Teacher Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="/attendance/mark" class="btn btn-info">
+                            <i class="fas fa-clipboard-check"></i> Mark Attendance
+                        </a>
+                        <a href="/attendance/records" class="btn btn-outline-info">
+                            <i class="fas fa-list-alt"></i> View Records
+                        </a>
+                        <a href="/attendance/report" class="btn btn-outline-info">
+                            <i class="fas fa-chart-bar"></i> Generate Report
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Actions -->
+        <div class="col-md-6 mb-4" sec:authorize="hasRole('USER')">
+            <div class="card shadow">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-user"></i> User Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="/student/list" class="btn btn-secondary">
+                            <i class="fas fa-search"></i> View Students
+                        </a>
+                        <a href="/attendance/records" class="btn btn-outline-secondary">
+                            <i class="fas fa-eye"></i> View Attendance
+                        </a>
+                        <a href="/holidays/calendar" class="btn btn-outline-warning">
+                            <i class="fas fa-calendar"></i> Holiday Calendar
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Info -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> System Information</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="fas fa-clock text-primary"></i>
+                            <strong>Last Login:</strong>
+                            <span th:text="${#dates.format(#dates.createNow(), 'MMM dd, yyyy HH:mm')}">Just now</span>
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-user-tag text-success"></i>
+                            <strong>Role:</strong>
+                            <span sec:authentication="principal.authorities">ROLE_USER</span>
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-calendar-day text-warning"></i>
+                            <strong>Today:</strong>
+                            <span th:text="${#dates.format(#dates.createNow(), 'EEEE, MMMM dd, yyyy')}"></span>
+                            <span th:if="${isHolidayToday}" class="badge bg-warning ms-2">Holiday</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-shield-alt text-danger"></i>
+                            <strong>Session:</strong> Active
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Holiday Info Modal -->
+<div class="modal fade" id="holidayModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title">Today's Holiday Information</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div th:if="${todayHolidays != null && !todayHolidays.isEmpty()}">
+                    <p>Attendance marking is disabled today due to:</p>
+                    <div th:each="holiday : ${todayHolidays}" class="mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title" th:text="${holiday.name}"></h6>
+                                <p class="card-text" th:text="${holiday.description}"></p>
+                                <div class="d-flex justify-content-between">
+                                    <span class="badge" th:class="${holiday.getTypeBadgeClass()}"
+                                          th:text="${holiday.getTypeDisplayName()}"></span>
+                                    <span th:text="${holiday.getFormattedDateRange()}"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div th:if="${todayHolidays == null || todayHolidays.isEmpty()}">
+                    <div class="text-center py-3">
+                        <i class="fas fa-calendar-times fa-3x text-warning mb-3"></i>
+                        <h5>No Holiday Information Available</h5>
+                        <p class="text-muted">Today is marked as a holiday, but no specific details are available.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="bg-light mt-5 py-3">
+    <div class="container text-center">
+        <p class="text-muted mb-0">
+            <i class="fas fa-qrcode"></i> Student QR System &copy; 2024 |
+            <span sec:authentication="name"></span> |
+            <span sec:authentication="principal.authorities"></span>
+        </p>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

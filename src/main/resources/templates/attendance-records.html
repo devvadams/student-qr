@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance Records - Student QR System</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    .record-card {
+      transition: all 0.3s;
+      border-left: 5px solid #dee2e6;
+    }
+    .record-card.present { border-left-color: #28a745; }
+    .record-card.absent { border-left-color: #dc3545; }
+    .record-card.late { border-left-color: #ffc107; }
+    .record-card.excused { border-left-color: #17a2b8; }
+    .filter-section {
+      background-color: #f8f9fa;
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .status-badge {
+      min-width: 80px;
+    }
+  </style>
+</head>
+<body>
+<!-- Navigation -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+  <div class="container">
+    <a class="navbar-brand" href="/dashboard">
+      <i class="fas fa-qrcode"></i> Student QR System
+    </a>
+    <div class="navbar-nav">
+      <a class="nav-link" href="/dashboard">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+      </a>
+      <a class="nav-link" href="/attendance/mark">
+        <i class="fas fa-clipboard-check"></i> Mark Attendance
+      </a>
+      <a class="nav-link active" href="/attendance/records">
+        <i class="fas fa-list-alt"></i> Records
+      </a>
+      <a class="nav-link" href="/attendance/report">
+        <i class="fas fa-chart-bar"></i> Reports
+      </a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <!-- Flash Messages -->
+  <div th:if="${param.success}" class="alert alert-success alert-dismissible fade show">
+    <i class="fas fa-check-circle"></i>
+    <span th:text="${param.message}">Operation successful!</span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+
+  <div th:if="${param.error}" class="alert alert-danger alert-dismissible fade show">
+    <i class="fas fa-exclamation-circle"></i>
+    <span th:text="${param.message}">Error occurred!</span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+
+  <!-- Page Header -->
+  <div class="row mb-4">
+    <div class="col-md-8">
+      <h1><i class="fas fa-list-alt"></i> Attendance Records</h1>
+      <p class="text-muted">View and filter attendance records</p>
+    </div>
+    <div class="col-md-4 text-end">
+      <a href="/attendance/mark" class="btn btn-primary">
+        <i class="fas fa-clipboard-check"></i> Mark Attendance
+      </a>
+      <a href="/attendance/report" class="btn btn-info ms-2">
+        <i class="fas fa-chart-bar"></i> View Report
+      </a>
+    </div>
+  </div>
+
+  <!-- Filter Section -->
+  <div class="card shadow mb-4">
+    <div class="card-header bg-light">
+      <h5 class="mb-0"><i class="fas fa-filter"></i> Filter Records</h5>
+    </div>
+    <div class="card-body filter-section">
+      <form th:action="@{/attendance/records}" method="get" class="row g-3">
+        <div class="col-md-4">
+          <label for="date" class="form-label">Date</label>
+          <input type="date" class="form-control" id="date" name="date"
+                 th:value="${selectedDate != null ? #temporals.format(selectedDate, 'yyyy-MM-dd') : #temporals.format(#dates.createNow(), 'yyyy-MM-dd')}">
+        </div>
+        <div class="col-md-4">
+          <label for="studentId" class="form-label">Student ID</label>
+          <input type="text" class="form-control" id="studentId" name="studentId"
+                 th:value="${studentId != null ? studentId : ''}"
+                 placeholder="Enter student ID">
+        </div>
+        <div class="col-md-4">
+          <label for="course" class="form-label">Course</label>
+          <select class="form-select" id="course" name="course">
+            <option value="">All Courses</option>
+            <option th:each="course : ${courses}"
+                    th:text="${course}"
+                    th:value="${course}"
+                    th:selected="${param.course == course}"></option>
+          </select>
+        </div>
+        <div class="col-12 text-end">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-search"></i> Apply Filters
+          </button>
+          <a href="/attendance/records" class="btn btn-outline-secondary ms-2">
+            <i class="fas fa-redo"></i> Reset
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Summary Card -->
+  <div class="row mb-4">
+    <div class="col-md-12">
+      <div class="card shadow">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0">
+            <i class="fas fa-chart-pie"></i> Summary for
+            <span th:text="${selectedDate != null ? #temporals.format(selectedDate, 'EEEE, MMMM dd, yyyy') : 'Today'}"></span>
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="row text-center">
+            <div class="col-md-2">
+              <div class="display-6 text-success"
+                   th:text="${attendanceSummary != null ? attendanceSummary.presentCount : 0}">0</div>
+              <small class="text-muted">Present</small>
+            </div>
+            <div class="col-md-2">
+              <div class="display-6 text-danger"
+                   th:text="${attendanceSummary != null ? attendanceSummary.absentCount : 0}">0</div>
+              <small class="text-muted">Absent</small>
+            </div>
+            <div class="col-md-2">
+              <div class="display-6 text-warning"
+                   th:text="${attendanceSummary != null ? attendanceSummary.unmarkedCount : 0}">0</div>
+              <small class="text-muted">Unmarked</small>
+            </div>
+            <div class="col-md-2">
+              <div class="display-6 text-primary"
+                   th:text="${attendanceSummary != null ? attendanceSummary.totalStudents : 0}">0</div>
+              <small class="text-muted">Total Students</small>
+            </div>
+            <div class="col-md-2">
+              <div class="display-6 text-info"
+                   th:text="${attendanceSummary != null ? attendanceSummary.markedCount : 0}">0</div>
+              <small class="text-muted">Marked</small>
+            </div>
+            <div class="col-md-2">
+              <div class="display-6"
+                   th:text="${attendanceSummary != null ? (#numbers.formatDecimal(attendanceSummary.attendancePercentage, 1, 1) + '%') : '0%'}">0%</div>
+              <small class="text-muted">Attendance %</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Records Table -->
+  <div class="card shadow">
+    <div class="card-header bg-light">
+      <h5 class="mb-0">
+        <i class="fas fa-table"></i> Attendance Records
+        <span class="badge bg-primary ms-2"
+              th:text="${attendanceRecords != null ? attendanceRecords.size() : 0}">0</span>
+      </h5>
+    </div>
+    <div class="card-body">
+      <div th:if="${attendanceRecords == null || attendanceRecords.isEmpty()}" class="text-center py-5">
+        <div class="display-4 text-muted mb-3">
+          <i class="fas fa-clipboard"></i>
+        </div>
+        <h4>No Attendance Records Found</h4>
+        <p class="text-muted">No attendance has been marked for the selected date.</p>
+        <a href="/attendance/mark" class="btn btn-primary">
+          <i class="fas fa-clipboard-check"></i> Mark First Attendance
+        </a>
+      </div>
+
+      <div th:unless="${attendanceRecords == null || attendanceRecords.isEmpty()}">
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+            <tr>
+              <th>#</th>
+              <th>Student</th>
+              <th>Roll Number</th>
+              <th>Course</th>
+              <th>Status</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Remarks</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="record, iterStat : ${attendanceRecords}"
+                th:classappend="${record.present} ? 'table-success' :
+                                               ${record.absent} ? 'table-danger' :
+                                               ${record.status == 'LATE'} ? 'table-warning' : 'table-info'">
+              <td th:text="${iterStat.count}">1</td>
+              <td>
+                <strong th:text="${record.student != null ? record.student.name : 'N/A'}">Student Name</strong>
+              </td>
+              <td th:text="${record.student != null ? record.student.rollNumber : 'N/A'}">Roll Number</td>
+              <td th:text="${record.student != null ? record.student.course : 'N/A'}">Course</td>
+              <td>
+                                    <span th:if="${record.present}"
+                                          class="badge bg-success status-badge">Present</span>
+                <span th:if="${record.absent}"
+                      class="badge bg-danger status-badge">Absent</span>
+                <span th:if="${record.status == 'LATE'}"
+                      class="badge bg-warning status-badge">Late</span>
+                <span th:if="${record.status == 'EXCUSED'}"
+                      class="badge bg-info status-badge">Excused</span>
+              </td>
+              <td th:text="${#temporals.format(record.attendanceDate, 'MMM dd, yyyy')}">Date</td>
+              <td>
+                                    <span th:if="${record.markedAt != null}"
+                                          th:text="${#temporals.format(record.markedAt, 'HH:mm')}">Time</span>
+                <span th:if="${record.markedAt == null}" class="text-muted">N/A</span>
+              </td>
+              <td>
+                <small th:text="${record.remarks != null ? record.remarks : 'No remarks'}"
+                       class="text-muted"></small>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination (if needed) -->
+        <div th:if="${attendanceRecords != null && attendanceRecords.size() > 10}" class="mt-4">
+          <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+              <li class="page-item disabled">
+                <a class="page-link" href="#" tabindex="-1">Previous</a>
+              </li>
+              <li class="page-item active"><a class="page-link" href="#">1</a></li>
+              <li class="page-item"><a class="page-link" href="#">2</a></li>
+              <li class="page-item"><a class="page-link" href="#">3</a></li>
+              <li class="page-item">
+                <a class="page-link" href="#">Next</a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+
+        <!-- Export Options -->
+        <div class="mt-4 text-end">
+          <button class="btn btn-outline-primary" onclick="exportToCSV()">
+            <i class="fas fa-download"></i> Export as CSV
+          </button>
+          <button class="btn btn-outline-info ms-2" onclick="window.print()">
+            <i class="fas fa-print"></i> Print
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="bg-light mt-5 py-3">
+  <div class="container text-center">
+    <p class="text-muted mb-0">
+      <i class="fas fa-qrcode"></i> Student QR Attendance System &copy; 2024
+    </p>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Set today's date as default in date picker if not already set
+  document.addEventListener('DOMContentLoaded', function() {
+    const dateInput = document.getElementById('date');
+    if (dateInput && !dateInput.value) {
+      const today = new Date().toISOString().split('T')[0];
+      dateInput.value = today;
+    }
+  });
+
+  // Simple CSV export function
+  function exportToCSV() {
+    alert('CSV export would be implemented here. In a real application, this would generate a CSV file download.');
+    // Implementation would involve:
+    // 1. Collecting table data
+    // 2. Converting to CSV format
+    // 3. Creating a download link
+  }
+</script>
+</body>
+</html>

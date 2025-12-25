@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Student with Photo - QR Code System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        #camera-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        #video {
+            width: 100%;
+            border-radius: 8px;
+            border: 2px solid #dee2e6;
+        }
+        #capture-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 3px solid white;
+            background: rgba(220, 53, 69, 0.8);
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        #capture-btn:hover {
+            background: rgba(220, 53, 69, 1);
+            transform: translateX(-50%) scale(1.1);
+        }
+        #canvas {
+            display: none;
+        }
+        #preview-container {
+            display: none;
+            text-align: center;
+        }
+        #photo-preview {
+            max-width: 200px;
+            border-radius: 8px;
+            border: 2px solid #28a745;
+        }
+        .camera-controls {
+            margin-top: 10px;
+        }
+        .step-indicator {
+            font-size: 12px;
+            padding: 5px 10px;
+            border-radius: 15px;
+            background: #e9ecef;
+        }
+        .step-indicator.active {
+            background: #007bff;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="/">
+            <i class="fas fa-qrcode"></i> Student QR System
+        </a>
+        <div class="navbar-nav">
+            <a class="nav-link active" href="/student/form">
+                <i class="fas fa-camera"></i> Add Student with Photo
+            </a>
+            <a class="nav-link" href="/student/list">
+                <i class="fas fa-list"></i> View All
+            </a>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Progress Steps -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-around">
+                            <span class="step-indicator active">
+                                <i class="fas fa-camera"></i> Step 1: Capture Photo
+                            </span>
+                        <span class="step-indicator">
+                                <i class="fas fa-user-edit"></i> Step 2: Enter Details
+                            </span>
+                        <span class="step-indicator">
+                                <i class="fas fa-qrcode"></i> Step 3: Generate QR
+                            </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="text-center">
+                        <i class="fas fa-user-plus"></i> Add New Student with Photo Capture
+                    </h3>
+                </div>
+
+                <div class="card-body">
+                    <!-- Flash Messages -->
+                    <div th:if="${success != null && !success}" class="alert alert-danger">
+                        <span th:text="${message}">Error occurred!</span>
+                    </div>
+
+                    <!-- Photo Capture Section -->
+                    <div class="mb-5">
+                        <h4 class="mb-3">
+                            <i class="fas fa-camera"></i> Step 1: Capture Student Photo
+                        </h4>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            Please allow camera access when prompted. The photo will be stored securely.
+                        </div>
+
+                        <!-- Camera View -->
+                        <div id="camera-container" class="mb-3">
+                            <video id="video" autoplay playsinline></video>
+                            <button id="capture-btn" onclick="capturePhoto()" title="Capture Photo">
+                                <i class="fas fa-camera"></i>
+                            </button>
+                            <canvas id="canvas"></canvas>
+                        </div>
+
+                        <!-- Camera Controls -->
+                        <div class="camera-controls text-center mb-4">
+                            <div class="btn-group">
+                                <button id="start-camera" class="btn btn-success" onclick="startCamera()">
+                                    <i class="fas fa-video"></i> Start Camera
+                                </button>
+                                <button id="stop-camera" class="btn btn-danger" onclick="stopCamera()" disabled>
+                                    <i class="fas fa-video-slash"></i> Stop Camera
+                                </button>
+                                <button id="switch-camera" class="btn btn-info" onclick="switchCamera()">
+                                    <i class="fas fa-sync-alt"></i> Switch Camera
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Photo Preview -->
+                        <div id="preview-container">
+                            <h5>Captured Photo Preview:</h5>
+                            <img id="photo-preview" src="" alt="Captured Photo">
+                            <div class="mt-3">
+                                <button onclick="retakePhoto()" class="btn btn-warning">
+                                    <i class="fas fa-redo"></i> Retake Photo
+                                </button>
+                                <button onclick="usePhoto()" class="btn btn-success">
+                                    <i class="fas fa-check"></i> Use This Photo
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Hidden field for photo data -->
+                        <input type="hidden" id="capturedPhoto" name="capturedPhoto">
+                    </div>
+
+                    <!-- Student Details Form -->
+                    <div id="student-form-section">
+                        <h4 class="mb-3">
+                            <i class="fas fa-user-edit"></i> Step 2: Enter Student Details
+                        </h4>
+
+                        <form id="studentForm" th:action="@{/student/generate-qr}" method="post" th:object="${student}">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="id" class="form-label">
+                                        <i class="fas fa-id-card"></i> Student ID
+                                    </label>
+                                    <input type="text" class="form-control" id="id" th:field="*{id}"
+                                           placeholder="Enter student ID" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="rollNumber" class="form-label">
+                                        <i class="fas fa-hashtag"></i> Roll Number
+                                    </label>
+                                    <input type="text" class="form-control" id="rollNumber" th:field="*{rollNumber}"
+                                           placeholder="Enter roll number" required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="name" class="form-label">
+                                        <i class="fas fa-user"></i> Full Name
+                                    </label>
+                                    <input type="text" class="form-control" id="name" th:field="*{name}"
+                                           placeholder="Enter full name" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="email" class="form-label">
+                                        <i class="fas fa-envelope"></i> Email Address
+                                    </label>
+                                    <input type="email" class="form-control" id="email" th:field="*{email}"
+                                           placeholder="Enter email address" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="course" class="form-label">
+                                    <i class="fas fa-graduation-cap"></i> Course
+                                </label>
+                                <input type="text" class="form-control" id="course" th:field="*{course}"
+                                       placeholder="Enter course name" required>
+                            </div>
+
+                            <!-- Photo Status -->
+                            <div id="photo-status" class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                No photo captured yet. Please capture a photo before submitting.
+                            </div>
+
+                            <!-- Submit Button -->
+                            <div class="d-grid gap-2 mt-4">
+                                <button type="submit" id="submit-btn" class="btn btn-primary btn-lg" disabled>
+                                    <i class="fas fa-qrcode"></i> Generate QR Code with Photo
+                                </button>
+                                <a href="/student/list" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left"></i> Back to Student List
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-info-circle"></i> Instructions</h5>
+                </div>
+                <div class="card-body">
+                    <ol>
+                        <li>Click "Start Camera" and allow camera access when prompted</li>
+                        <li>Position the student in front of the camera</li>
+                        <li>Click the red camera button to capture the photo</li>
+                        <li>Review the photo and click "Use This Photo"</li>
+                        <li>Fill in all student details in the form</li>
+                        <li>Click "Generate QR Code with Photo" to complete</li>
+                    </ol>
+                    <p class="text-muted mb-0">
+                        <small>
+                            <i class="fas fa-shield-alt"></i>
+                            Photos are stored securely as Base64 encoded data and are only accessible to authorized users.
+                        </small>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="bg-light mt-5 py-3">
+    <div class="container text-center">
+        <p class="text-muted mb-0">
+            <i class="fas fa-qrcode"></i> Student QR Code System with Photo Capture &copy; 2024
+        </p>
+    </div>
+</footer>
+
+<!-- Webcam JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // DOM Elements
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const photoPreview = document.getElementById('photo-preview');
+    const previewContainer = document.getElementById('preview-container');
+    const capturedPhotoInput = document.getElementById('capturedPhoto');
+    const photoStatus = document.getElementById('photo-status');
+    const submitBtn = document.getElementById('submit-btn');
+    const startCameraBtn = document.getElementById('start-camera');
+    const stopCameraBtn = document.getElementById('stop-camera');
+
+    let stream = null;
+    let facingMode = 'user'; // 'user' for front camera, 'environment' for back camera
+    let photoCaptured = false;
+
+    // Start camera
+    async function startCamera() {
+        try {
+            const constraints = {
+                video: {
+                    facingMode: facingMode,
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            };
+
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = stream;
+
+            // Enable/disable buttons
+            startCameraBtn.disabled = true;
+            stopCameraBtn.disabled = false;
+            document.getElementById('switch-camera').disabled = false;
+
+            // Update status
+            photoStatus.className = 'alert alert-warning';
+            photoStatus.innerHTML = '<i class="fas fa-video"></i> Camera is active. Capture a photo to proceed.';
+
+        } catch (error) {
+            console.error('Error accessing camera:', error);
+            alert('Could not access camera. Please check permissions and try again.');
+        }
+    }
+
+    // Stop camera
+    function stopCamera() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            video.srcObject = null;
+            stream = null;
+
+            // Enable/disable buttons
+            startCameraBtn.disabled = false;
+            stopCameraBtn.disabled = true;
+            document.getElementById('switch-camera').disabled = true;
+
+            // Update status
+            photoStatus.className = 'alert alert-warning';
+            photoStatus.innerHTML = '<i class="fas fa-video-slash"></i> Camera stopped. Start camera to capture photo.';
+        }
+    }
+
+    // Switch between front/back camera
+    function switchCamera() {
+        facingMode = facingMode === 'user' ? 'environment' : 'user';
+        stopCamera();
+        setTimeout(startCamera, 100);
+    }
+
+    // Capture photo from video
+    function capturePhoto() {
+        if (!stream) {
+            alert('Please start the camera first!');
+            return;
+        }
+
+        // Set canvas dimensions to match video
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        // Draw current video frame to canvas
+        const context = canvas.getContext('2d');
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Convert canvas to data URL (JPEG format, 80% quality)
+        const photoDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+        // Show preview
+        photoPreview.src = photoDataUrl;
+        previewContainer.style.display = 'block';
+
+        // Scroll to preview
+        previewContainer.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Use captured photo
+    function usePhoto() {
+        // Get the data URL from canvas
+        const photoDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+        // Store in hidden input
+        capturedPhotoInput.value = photoDataUrl;
+        photoCaptured = true;
+
+        // Hide camera and show success
+        document.getElementById('camera-container').style.display = 'none';
+        document.querySelector('.camera-controls').style.display = 'none';
+        previewContainer.style.display = 'none';
+
+        // Update status
+        photoStatus.className = 'alert alert-success';
+        photoStatus.innerHTML = '<i class="fas fa-check-circle"></i> Photo captured successfully! You can now fill in student details.';
+
+        // Enable submit button
+        submitBtn.disabled = false;
+
+        // Stop camera to save resources
+        stopCamera();
+
+        // Update step indicators
+        document.querySelectorAll('.step-indicator')[0].classList.remove('active');
+        document.querySelectorAll('.step-indicator')[1].classList.add('active');
+    }
+
+    // Retake photo
+    function retakePhoto() {
+        previewContainer.style.display = 'none';
+        document.getElementById('camera-container').style.display = 'block';
+        document.querySelector('.camera-controls').style.display = 'block';
+    }
+
+    // Form validation
+    document.getElementById('studentForm').addEventListener('submit', function(e) {
+        if (!photoCaptured) {
+            e.preventDefault();
+            alert('Please capture a photo before submitting!');
+            return false;
+        }
+
+        // Check if all required fields are filled
+        const requiredFields = document.querySelectorAll('#studentForm [required]');
+        for (let field of requiredFields) {
+            if (!field.value.trim()) {
+                e.preventDefault();
+                alert('Please fill in all required fields!');
+                field.focus();
+                return false;
+            }
+        }
+
+        // Show loading state
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating QR Code...';
+        submitBtn.disabled = true;
+
+        // Update step indicators
+        document.querySelectorAll('.step-indicator')[1].classList.remove('active');
+        document.querySelectorAll('.step-indicator')[2].classList.add('active');
+
+        return true;
+    });
+
+    // Auto-start camera when page loads
+    window.addEventListener('DOMContentLoaded', () => {
+        // Try to start camera automatically
+        setTimeout(startCamera, 500);
+
+        // Check for camera support
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert('Your browser does not support camera access. Please use Chrome, Firefox, or Edge.');
+            photoStatus.className = 'alert alert-danger';
+            photoStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Camera not supported in this browser.';
+        }
+    });
+
+    // Clean up camera on page unload
+    window.addEventListener('beforeunload', () => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+    });
+</script>
+</body>
+</html>
