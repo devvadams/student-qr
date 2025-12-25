@@ -41,25 +41,20 @@ A comprehensive Spring Boot application for managing student attendance using QR
    ```bash
    git clone https://github.com/devvadams/student-qr.git
    cd student-qr
+
 2.Build the project:
    ```bash
    ./gradlew build
-3.Run the application:
-   ```bash
-   ./gradlew bootRun
-4. Open browser: http://localhost:8080
-   ```bash
-Open browser: http://localhost:8080
+```
+4. **Open browser:** `http://localhost:8080`
 
-Default Credentials
-Admin: admin / admin123
+### **Default Credentials**
+- **Admin:** admin / admin123
+- **Teacher:** teacher / teacher123  
+- **User:** user / user123
 
-Teacher: teacher / teacher123
-
-User: user / user123
-
-📁 Project Structure
-text
+## **📁 Project Structure**
+```
 student-qr-attendance-system/
 ├── src/main/java/com/example/studentqr/
 │   ├── controller/     # MVC Controllers
@@ -72,88 +67,80 @@ student-qr-attendance-system/
 │   ├── static/         # CSS, JS, images
 │   └── application.properties
 └── build.gradle        # Gradle configuration
-🎯 Key Features in Detail
-Holiday System
-Date Ranges: Support for multi-day holidays
+```
 
-Activity Days: Special school days with attendance
+## **🎯 Key Features in Detail**
 
-Auto-marking: Automatic attendance marking for holidays
+### **Holiday System**
+- **Date Ranges:** Support for multi-day holidays
+- **Activity Days:** Special school days with attendance
+- **Auto-marking:** Automatic attendance marking for holidays
+- **Calendar View:** Visual holiday calendar
 
-Calendar View: Visual holiday calendar
+### **Attendance Features**
+- **Manual Entry:** Enter student ID/roll number
+- **QR Scanning:** Scan student QR codes
+- **Bulk Actions:** Mark attendance for entire class
+- **Reports:** Daily, weekly, monthly reports
 
-Attendance Features
-Manual Entry: Enter student ID/roll number
+## **🔧 Configuration**
 
-QR Scanning: Scan student QR codes
-
-Bulk Actions: Mark attendance for entire class
-
-Reports: Daily, weekly, monthly reports
-
-🔧 Configuration
-Database
+### **Database**
 The application uses H2 in-memory database by default. To use MySQL:
 
-Update application.properties:
-
-properties
+1. Update `application.properties`:
+```properties
 spring.datasource.url=jdbc:mysql://localhost:3306/studentqr
 spring.datasource.username=root
 spring.datasource.password=yourpassword
 spring.jpa.hibernate.ddl-auto=update
-Email Configuration (Optional)
-For email notifications, configure in application.properties:
+```
 
-properties
+### **Email Configuration (Optional)**
+For email notifications, configure in `application.properties`:
+```properties
 spring.mail.host=smtp.gmail.com
 spring.mail.port=587
 spring.mail.username=your-email@gmail.com
 spring.mail.password=your-app-password
-📊 API Documentation
+```
+
+## **📊 API Documentation**
 The application provides REST APIs for:
+- Student management
+- Attendance marking
+- Holiday management
+- Report generation
 
-Student management
-
-Attendance marking
-
-Holiday management
-
-Report generation
-
-🧪 Testing
+## **🧪 Testing**
 Run tests:
-
-bash
+```bash
 ./gradlew test
-🤝 Contributing
-Fork the repository
+```
 
-Create a feature branch
+## **🤝 Contributing**
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
-Commit your changes
+## **📄 License**
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-Push to the branch
+## **👏 Acknowledgments**
+- Spring Boot Team
+- Bootstrap Team
+- All contributors and testers
 
-Create a Pull Request
-
-📄 License
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-👏 Acknowledgments
-Spring Boot Team
-
-Bootstrap Team
-
-All contributors and testers
-
-text
+---
 
 ## **4. Additional Files to Create:**
 
-### **.gitignore (already added by GitHub)**
+### **.gitignore** (already added by GitHub)
 Make sure it includes:
-Java
+```
+# Java
 *.class
 *.jar
 *.war
@@ -163,12 +150,12 @@ Java
 *.tar.gz
 *.rar
 
-Gradle
+# Gradle
 .gradle/
 build/
 out/
 
-IDE
+# IDE
 .idea/
 *.iml
 *.iws
@@ -180,25 +167,24 @@ IDE
 *.swp
 *.swo
 
-Logs
+# Logs
 *.log
 logs/
 
-Database
+# Database
 *.db
 *.sql
 
-OS
+# OS
 .DS_Store
 Thumbs.db
+```
 
-text
-
-### **LICENSE (MIT)**
+### **LICENSE** (MIT)
 ```text
 MIT License
 
-Copyright (c) 2024 [Your Name]
+Copyright (c) 2025 [Adamu Baba Hassan]
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -217,8 +203,10 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-5. Push Your Existing Code:
-bash
+```
+
+## **5. Push Your Existing Code:**
+```bash
 # Initialize git (if not already)
 git init
 
@@ -229,21 +217,25 @@ git add .
 git commit -m "Initial commit: Student QR Attendance System"
 
 # Add remote repository
-git remote add origin https://github.com/yourusername/student-qr-attendance-system.git
+git remote add origin https://github.com/devvadams/student-qr.git
 
 # Push to GitHub
 git branch -M main
 git push -u origin main
-6. Repository Badges (Add to README):
+```
+
+## **6. Repository Badges** (Add to README):
 Add these badges to your README for a professional look:
 
-markdown
+```markdown
 ![Java](https://img.shields.io/badge/Java-17-blue)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.8-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-green)
-![GitHub last commit](https://img.shields.io/github/last-commit/yourusername/student-qr-attendance-system)
-7. Final Repository Structure Should Look Like:
-text
+![GitHub last commit](https://img.shields.io/github/last-commit/devvadams/student-qr)
+```
+
+## **7. Final Repository Structure Should Look Like:**
+```
 student-qr-attendance-system/
 ├── README.md
 ├── LICENSE
@@ -256,3 +248,7 @@ student-qr-attendance-system/
     └── main/
         ├── java/com/example/studentqr/
         └── resources/
+```
+
+---
+
